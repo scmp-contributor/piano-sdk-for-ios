@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name         = 'PianoOAuth'
+  s.name         = 'SCMPPianoOAuth'
   s.version      = '2.3.12'
   s.swift_version = '5.0'
   s.summary      = 'Enables iOS apps to sign in with Piano.io'
