@@ -50,4 +50,9 @@ import Foundation
      Event fired by composer when async task was completed and all experience event fired
      */
     @objc optional func composerExecutionCompleted(composer: PianoComposer)
+
+    /** 
+     Event fired by composer when got the response header
+     */
+    @objc optional func responseHeaderReturned(composer: PianoComposer, header: [AnyHashable : Any])
 }

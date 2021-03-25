@@ -230,6 +230,7 @@ public class PianoComposer: NSObject {
         }
         
         PianoLogger.debug(message: "Response data:\n\(String(data: data!, encoding: .utf8) ?? "")")
+        self.delegate?.responseHeaderReturned?(composer: self, header: httpResponse.allHeaderFields)
         guard let responseObject = JSONSerializationUtil.deserializeResponse(response: response!, responseData: data!) else {
             PianoLogger.debug(message: "Cannot deserialize response")
             return
