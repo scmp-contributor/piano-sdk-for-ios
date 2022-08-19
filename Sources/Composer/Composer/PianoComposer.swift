@@ -221,7 +221,7 @@ public class PianoComposer: NSObject {
             PianoLogger.debug(message: error.localizedDescription)
             
             // should delegate dataTaskRequestFailedWithError
-            delegate?.composerExecutionResult?(composer: self, failure: NSError(domain: "SCMPPianoComposer.PianoExperienceExecuteMobileRequest", code: -1001, userInfo: [NSLocalizedDescriptionKey: Self.Error.dataTaskRequestFailedWithError(error: error)]))
+            delegate?.composerExecutionResult(composer: self, result: .failure(.dataTaskRequestFailedWithError(error: error)))
             return
         }
         
