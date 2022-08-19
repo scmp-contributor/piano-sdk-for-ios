@@ -197,8 +197,10 @@ public class PianoComposer: NSObject {
                     UIApplication.shared.isNetworkActivityIndicatorVisible = false
                 }
                 
+                // unattended responsibility of guarding error != nil && data == nil
                 self.taskCompleted(data: data, response: response, error: error)
                 DispatchQueue.main.async {
+                    // this delegate composerExecutionCompleted event is always fired no matter how the dataTask request failed with error
                     self.delegate?.composerExecutionCompleted?(composer: self)
                 }
             })
@@ -214,17 +216,26 @@ public class PianoComposer: NSObject {
         return self
     }
     
-    fileprivate func taskCompleted(data: Data?, response: URLResponse?, error: Error?) {
+    fileprivate func taskCompleted(data: Data?, response: URLResponse?, error: Swift.Error?) {
         if let error = error {
             PianoLogger.debug(message: error.localizedDescription)
+            
+            // should delegate dataTaskRequestFailedWithError
+            delegate?.composerExecutionResult?(composer: self, failure: NSError(domain: "SCMPPianoComposer.PianoExperienceExecuteMobileRequest", code: -1001, userInfo: [NSLocalizedDescriptionKey: Self.Error.dataTaskRequestFailedWithError(error: error)]))
             return
         }
         
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 && data != nil else {
             PianoLogger.debug(message: "Incorrect response: httpStatus=\((response as? HTTPURLResponse)?.statusCode ?? 0), data size=\(data?.count ?? 0)")
             
+            // should delegate incorrectHTTPURLResponse
+            delegate?.composerExecutionResult(composer: self, result: .failure(.incorrectHTTPURLResponse(errorMsg: "Incorrect response: httpStatus=\((response as? HTTPURLResponse)?.statusCode ?? 0), data size=\(data?.count ?? 0)")))
+            
             if let responseData = data, responseData.count > 0 {
                 PianoLogger.debug(message: "Response data:\n\(String(data: responseData, encoding: .utf8) ?? "")")
+                
+                // should delegate incorrectHTTPURLResponseButContainingResourceData
+                delegate?.composerExecutionResult(composer: self, result: .failure(.incorrectHTTPURLResponseButContainingResourceData(errorMsg: "Response data:\n\(String(data: responseData, encoding: .utf8) ?? "")")))
             }
             return
         }
@@ -233,6 +244,9 @@ public class PianoComposer: NSObject {
         self.delegate?.responseHeaderReturned?(composer: self, header: httpResponse.allHeaderFields)
         guard let responseObject = JSONSerializationUtil.deserializeResponse(response: response!, responseData: data!) else {
             PianoLogger.debug(message: "Cannot deserialize response")
+            
+            // should delegate jsonDataParserResultNotParsedForResourceDataJSON
+            delegate?.composerExecutionResult(composer: self, result: .failure(.jsonDataParserResultNotParsedForResourceDataJSON(errorMsg: "Response data:\n\(String(data: data!, encoding: .utf8) ?? "")")))
             return
         }
         
@@ -355,8 +369,15 @@ public class PianoComposer: NSObject {
         }
         
         PianoLogger.debug(message: "Experience error result processing: ")
+        
+        // should delegate parsedResponseDataJSONObjectContainingErrorsArray
+        delegate?.composerExecutionResult(composer: self, result: .failure(.parsedResponseDataJSONObjectContainingErrorsArray(errorMsg: "Experience error result processing: errors count = \(errorResult.errors.count)")))
+        
         for e in errorResult.errors {
             PianoLogger.debug(message: "Error field=\(e.field) key=\(e.key) msg=\(e.message)")
+            
+            // should delegate experienceResultProcessorForErrorResult
+            delegate?.composerExecutionResult(composer: self, result: .failure(.experienceResultProcessorForErrorResult(errorMsg: "Error field=\(e.field) key=\(e.key) msg=\(e.message)")))
         }
     }
     
@@ -426,5 +447,36 @@ public class PianoComposer: NSObject {
     
     public static func clearStoredData() {
         Preferences.clearPreferences()
+    }
+}
+
+extension PianoComposer {
+    public enum Error: Swift.Error {
+        case unknown(nserror: NSError?)
+        case dataTaskRequestFailedWithError(error: Swift.Error?)
+        case incorrectHTTPURLResponse(errorMsg: String)
+        case incorrectHTTPURLResponseButContainingResourceData(errorMsg: String)
+        case jsonDataParserResultNotParsedForResourceDataJSON(errorMsg: String)
+        case parsedResponseDataJSONObjectContainingErrorsArray(errorMsg: String)
+        case experienceResultProcessorForErrorResult(errorMsg: String)
+        
+        static let domainNSError = "SCMPPianoComposer.PianoExperienceExecuteMobileRequest"
+        
+        var codeNSError: Int {
+            switch self {
+            case .unknown(let nserror?): return nserror.code
+            case .unknown(nserror: .none): return -1000
+            case .dataTaskRequestFailedWithError: return -1001
+            case .incorrectHTTPURLResponse: return -1002
+            case .incorrectHTTPURLResponseButContainingResourceData: return -1003
+            case .jsonDataParserResultNotParsedForResourceDataJSON: return -1004
+            case .parsedResponseDataJSONObjectContainingErrorsArray: return -1005
+            case .experienceResultProcessorForErrorResult: return -1006
+            }
+        }
+        
+        var asNSError: NSError {
+            return NSError(domain: Self.domainNSError, code: codeNSError, userInfo: [NSLocalizedDescriptionKey: self])
+        }
     }
 }

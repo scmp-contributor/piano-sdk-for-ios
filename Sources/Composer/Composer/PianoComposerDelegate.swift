@@ -55,4 +55,17 @@ import Foundation
      Event fired by composer when got the response header
      */
     @objc optional func responseHeaderReturned(composer: PianoComposer, header: [AnyHashable : Any])
+    
+    /** 
+     Event with NSError failure fired by composer during execution
+     */
+    @objc optional func composerExecutionResult(composer: PianoComposer, failure: NSError)
+}
+
+extension PianoComposerDelegate {
+    func composerExecutionResult(composer: PianoComposer, result: Swift.Result<Void, PianoComposer.Error>) {
+        if case .failure(let pianoExperienceExecuteMobileRequestError) = result {
+            composerExecutionResult?(composer: composer, failure: pianoExperienceExecuteMobileRequestError.asNSError)
+        }
+    }
 }
